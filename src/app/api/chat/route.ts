@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface ChatRequest {
+  persona: string;
+  message: string;
+  history?: Message[];
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '');
 
 const personaPrompts = {
@@ -56,7 +68,7 @@ Be direct but supportive with immediate actionable steps that address their exac
 
 export async function POST(request: Request) {
   try {
-    const { persona, message, history } = await request.json();
+    const { persona, message, history }: ChatRequest = await request.json();
 
     if (!process.env.GOOGLE_GEMINI_API_KEY) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
@@ -64,7 +76,7 @@ export async function POST(request: Request) {
 
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const systemPrompt = personaPrompts[persona as keyof typeof personaPrompts];
-    const conversationContext = history?.map((msg: any) => `${msg.role}: ${msg.content}`).join('\n') || '';
+    const conversationContext = history?.map((msg: Message) => `${msg.role}: ${msg.content}`).join('\n') || '';
     
     const exchangeCount = history ? history.length : 0;
     const shouldProvideActionableAdvice = exchangeCount >= 2; // 1+ exchanges (user + assistant pairs)
